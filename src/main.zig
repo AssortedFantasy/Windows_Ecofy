@@ -12,6 +12,7 @@ pub fn main() !void {
     const buff = try config.readToEndAlloc(std.heap.page_allocator, std.math.maxInt(u32));
     config.close();
     // Don't need to free.
+    // Kept till program exits.
 
     var num_tokens: usize = 0;
     var it = std.mem.splitAny(u8, buff, "\r\n");
@@ -25,7 +26,7 @@ pub fn main() !void {
         var i: usize = 0;
         while (it.next()) |name| {
             if (name.len > 0) {
-                std.log.debug("Watched name: \"{s}\"", .{name});
+                std.log.info("Watched name: \"{s}\"", .{name});
                 names[i] = name;
                 i += 1;
             }
@@ -40,21 +41,22 @@ pub fn main() !void {
     );
 
     if (result == 0) {
-        std.log.debug("could not get processes, error code: {}", .{win.GetLastError()});
+        std.log.err("Could not get processes, error code: {}", .{win.GetLastError()});
         return error.WINAPI;
     }
 
     const num_procs = @divExact(bytes_returned, @sizeOf(win.DWORD));
+    std.log.info("Got {} processes", .{num_procs});
     const valid_procs = procs[0..num_procs];
 
     for (valid_procs) |proc_id| {
         const handle = win.OpenProcess(win.PROCESS_QUERY_LIMITED_INFORMATION, win.FALSE, proc_id);
 
         if (handle == null) {
-            std.log.debug("Failed to open processes id: {}, error code: {}", .{ proc_id, win.GetLastError() });
+            std.log.warn("Failed to open processes id: {}, error code: {}", .{ proc_id, win.GetLastError() });
             continue;
         } else {
-            std.log.debug("opened id: {}", .{proc_id});
+            std.log.info("Opened id: {}", .{proc_id});
         }
 
         var buff16: [1 << 8]u16 = undefined;
@@ -62,21 +64,28 @@ pub fn main() !void {
 
         const name_len_u16 = win.GetProcessImageFileNameW(handle, &buff16, buff16.len);
         if (name_len_u16 == 0) {
-            std.log.debug("Failed to get image name, error code: {}", .{win.GetLastError()});
+            std.log.err("Failed to get image name, error code: {}", .{win.GetLastError()});
             return error.WINAPI;
         }
 
         const name_len_u8 = try std.unicode.utf16leToUtf8(&buff8, buff16[0..name_len_u16]);
-        const name = buff8[0..name_len_u8];
+        const proc_name = buff8[0..name_len_u8];
 
-        std.log.debug("Open process: {s}", .{name});
+        std.log.debug("Open process: {s}", .{proc_name});
+
+        var any_match = false;
+        for (names) |name| {
+            if (std.mem.indexOf(u8, proc_name, name) != null) {
+                std.log.info("Process matched to {s}", .{name});
+                any_match = true;
+                break;
+            }
+        }
 
         const close_result = win.CloseHandle(handle);
         if (close_result == 0) {
-            std.log.debug("Failed to close handle, error code: {}", .{win.GetLastError()});
+            std.log.err("Failed to close handle, error code: {}", .{win.GetLastError()});
             return error.WINAPI;
         }
     }
-
-    std.log.debug("{}", .{num_procs});
 }
