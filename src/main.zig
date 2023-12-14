@@ -2,6 +2,7 @@ const std = @import("std");
 const win = @cImport({
     @cInclude("windows.h");
     @cInclude("psapi.h");
+    @cInclude("aclapi.h");
 });
 
 const config_file_name = "ecofy.conf";
@@ -50,7 +51,7 @@ pub fn main() !void {
     const valid_procs = procs[0..num_procs];
 
     for (valid_procs) |proc_id| {
-        const handle = win.OpenProcess(win.PROCESS_QUERY_LIMITED_INFORMATION, win.FALSE, proc_id);
+        const handle = win.OpenProcess(win.PROCESS_QUERY_LIMITED_INFORMATION | win.PROCESS_SET_INFORMATION, win.FALSE, proc_id);
 
         if (handle == null) {
             std.log.warn("Failed to open processes id: {}, error code: {}", .{ proc_id, win.GetLastError() });
@@ -81,6 +82,8 @@ pub fn main() !void {
                 break;
             }
         }
+
+        if (any_match) {}
 
         const close_result = win.CloseHandle(handle);
         if (close_result == 0) {
