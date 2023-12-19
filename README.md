@@ -7,3 +7,4 @@ Rescans running processes every 5 minutes.
 
 build with `zig build`
 
+`ecofy.conf`` in the top level directory serves as a simple example of the config file expected.

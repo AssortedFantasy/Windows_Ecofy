@@ -26,8 +26,6 @@ pub fn main() !void {
     const config = try std.fs.cwd().openFile(config_file_name, .{});
     const buff = try config.readToEndAlloc(allocator, std.math.maxInt(u32));
     config.close();
-    // Don't need to free.
-    // Kept till program exits.
 
     var it = std.mem.splitAny(u8, buff, "\r\n");
     var name_count: usize = 0;
@@ -181,48 +179,7 @@ pub fn main() !void {
             return EcoErrors.WINAPI;
         }
 
+        // TODO: Could use a coalescing timer.
         win.Sleep(std.time.ms_per_min * 5);
     }
-
-    // var buff16: [1 << 8]u16 = undefined;
-    // var buff8: [1 << 8]u8 = undefined;
-
-    // const name_len_u16 = win.GetProcessImageFileNameW(handle, &buff16, buff16.len);
-    // if (name_len_u16 == 0) {
-    //     log.err("Failed to get image name, error code: {}", .{win.GetLastError()});
-    //     return EcoErrors.WINAPI;
-    // }
-
-    // const name_len_u8 = try std.unicode.utf16leToUtf8(&buff8, buff16[0..name_len_u16]);
-    // const proc_name = buff8[0..name_len_u8];
-
-    // log.debug("Open process: {s}", .{proc_name});
-
-    // var any_match = false;
-    // for (names) |name| {
-    //     if (std.mem.indexOf(u8, proc_name, name) != null) {
-    //         log.info("Process matched to {s}", .{name});
-    //         any_match = true;
-    //         break;
-    //     }
-    // }
-
-    // if (any_match) {
-    //     var process_info: win.PROCESS_POWER_THROTTLING_STATE = .{
-    //         .Version = win.PROCESS_POWER_THROTTLING_CURRENT_VERSION,
-    //         .ControlMask = win.PROCESS_POWER_THROTTLING_EXECUTION_SPEED,
-    //         .StateMask = win.PROCESS_POWER_THROTTLING_EXECUTION_SPEED,
-    //     };
-
-    //     if (win.SetProcessInformation(
-    //         handle,
-    //         win.ProcessPowerThrottling,
-    //         &process_info,
-    //         @sizeOf(@TypeOf(process_info)),
-    //     ) == 0) {
-    //         log.err("Failed to set process information, error code: {}", .{win.GetLastError()});
-    //         return EcoErrors.WINAPI;
-    //     }
-    //     log.info("Set \"{s}\" to EcoQoS", .{proc_name});
-
 }
