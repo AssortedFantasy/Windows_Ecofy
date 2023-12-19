@@ -8,31 +8,31 @@ const win = @cImport({
 const config_file_name = "ecofy.conf";
 var procs: [1 << 10]win.DWORD = undefined;
 
+var mem_buff: [1 << 14]u8 = undefined; // 16K max
+var name_buff: [512][]const u8 = undefined; // Because we dont use linear scan.
+
 pub fn main() !void {
+    var fba = std.heap.FixedBufferAllocator.init(&mem_buff);
+    const allocator = fba.allocator();
+
     const config = try std.fs.cwd().openFile(config_file_name, .{});
-    const buff = try config.readToEndAlloc(std.heap.page_allocator, std.math.maxInt(u32));
+    const buff = try config.readToEndAlloc(allocator, std.math.maxInt(u32));
     config.close();
     // Don't need to free.
     // Kept till program exits.
 
-    var num_tokens: usize = 0;
     var it = std.mem.splitAny(u8, buff, "\r\n");
+    var name_count: usize = 0;
     while (it.next()) |name| {
-        if (name.len > 0) num_tokens += 1;
-    }
-
-    const names = try std.heap.page_allocator.alloc([]const u8, num_tokens);
-    it.reset();
-    {
-        var i: usize = 0;
-        while (it.next()) |name| {
-            if (name.len > 0) {
-                std.log.info("Watched name: \"{s}\"", .{name});
-                names[i] = name;
-                i += 1;
-            }
+        if (name.len > 0) {
+            std.log.info("Watched name: \"{s}\"", .{name});
+            if (name_count >= name_buff.len) return error.TooManyNames;
+            name_buff[name_count] = name;
+            name_count += 1;
         }
     }
+
+    const names = name_buff[0..name_count];
 
     var bytes_returned: win.DWORD = undefined;
     const result = win.EnumProcesses(
